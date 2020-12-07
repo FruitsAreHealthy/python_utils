@@ -4,6 +4,15 @@ from    copy        import copy
 import  winreg
 import  subprocess
 
+MICROSOFT_MSVC_URLS = [
+        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4000-through-c4199?view=msvc-160',
+        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4200-through-c4399?view=msvc-160',
+        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4400-through-c4599?view=msvc-160',
+        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4600-through-c4799?view=msvc-160',
+        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4800-through-c4999?view=msvc-160',
+        'https://docs.microsoft.com/en-us/cpp/build/reference/linker-options?view=msvc-160',
+        ]
+
 KEYREG_VS = "SOFTWARE\Microsoft\VisualStudio\%s"
 # does not exists but might eventually
 VS_MAX_VERSION = 30
@@ -41,57 +50,52 @@ def hasVisualStudio():
             pass
     return available_vs
 
-CACHE = os.path.join('cache','webparser_cache')
+class MSVC(object):
+    """docstring for MSVC"""
+    def __init__(self):
+        super(MSVC, self).__init__()
+        self.htmlparser = webTable.HTMLTableParser()
+        if os.environ.get('CACHE'):
+            cache_path = os.path.join(CACHE,'webparser_cache')
+            self.htmlparser.setCache(cache_path)
+        self._loadHttpData()
 
-_htmlparser = webTable.HTMLTableParser()
-_htmlparser.setCache(CACHE)
+    def _loadHttpData(self):
+        for url in MICROSOFT_MSVC_URLS:
+            self.htmlparser.feed(url)
 
-URLS = [
-        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4000-through-c4199?view=msvc-160',
-        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4200-through-c4399?view=msvc-160',
-        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4400-through-c4599?view=msvc-160',
-        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4600-through-c4799?view=msvc-160',
-        'https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warnings-c4800-through-c4999?view=msvc-160',
-        'https://docs.microsoft.com/en-us/cpp/build/reference/linker-options?view=msvc-160',
-        ]
+    def listCompilerFlags(self):
+        t = self.htmlparser.getTable('linker-options-listed-alphabetically')[0]
+        t.prettyTable()
 
+    def printTables(self):
+        for t in self.htmlparser.tables:
+            print(t.name)
 
-try:
-    for url in URLS:
-        _htmlparser.feed(url)
-except Exception as e:
-    #print("%i tables found" % p.countTables)
-    #print("Row index '%i' from last table '%s'" % (p._table.rows, p._table.name))
-    raise e
+    def getTable(self,name):
+        return self.htmlparser.getTables(name)
+    def getTables(self):
+        return self.htmlparser.tables
 
-
-def compilerFlags():
-    t = _htmlparser.getTable('linker-options-listed-alphabetically')[0]
-    t.prettyTable()
-
-def printTables():
-    for t in _htmlparser.tables:
-        print(t.name)
-
-def getWarningMessage(warningsToCheck):
-    descriptions = {}
-    if type(warningsToCheck) is str:
-        warnings = [warningsToCheck]
-    else:
-        warnings = copy(warningsToCheck)
-    tables = _htmlparser.getTable('warning-messages')
-    for t in tables:
-        for i in range(0,t.rows):
-            w = t.data[0][i] 
-            found = False
-            for iw in warnings:
-                if iw in w:
-                    found = True
+    def getWarningMessage(self,warningsToCheck):
+        descriptions = {}
+        if type(warningsToCheck) is str:
+            warnings = [warningsToCheck]
+        else:
+            warnings = copy(warningsToCheck)
+        tables = self.htmlparser.getTable('warning-messages')
+        for t in tables:
+            for i in range(0,t.rows):
+                w = t.data[0][i] 
+                found = False
+                for iw in warnings:
+                    if iw in w:
+                        found = True
+                        break
+                if found:
+                    warnings.remove(iw)
+                    descriptions[iw] = t.data[1][i]
+                if len(warnings) == 0:
                     break
-            if found:
-                warnings.remove(iw)
-                descriptions[iw] = t.data[1][i]
-            if len(warnings) == 0:
-                break
-    return descriptions
+        return descriptions
 
