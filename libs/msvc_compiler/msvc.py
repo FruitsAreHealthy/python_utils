@@ -19,14 +19,16 @@ VS_MAX_VERSION = 30
 # this is a vs .bat to set all environment variables for cl.exe compilation
 VS_DEFAULT_PATH_BAT = r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
 
-def _VisualStudioEnvVarsInPlace():
-    return 'VisualStudioVersion' in os.environ
-
 def StartVisualStudioEnvVars():
-    if _VisualStudioEnvVarsInPlace():
+    if 'VisualStudioVersion' in os.environ:
        return
     try:
-        temp_file = 'cache/temp_file.txt'
+        cache = os.environ.get('cache')
+        if cache is None:
+            raise Exception("Environ 'cache' variable not set (will save any temp file here)")
+        elif not os.path.exists(cache):
+            os.makedirs(cache)
+        temp_file = os.path.join(cache,'temp_file.txt')
         if not os.path.exists(temp_file):
             cmd = '"%s" %s && set > %s' % (VS_DEFAULT_PATH_BAT,"x64",temp_file)
             output = subprocess.check_output(cmd,stderr=subprocess.STDOUT,shell=False)
