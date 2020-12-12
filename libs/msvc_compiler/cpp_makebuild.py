@@ -90,6 +90,7 @@ class MSVCBuilder(object):
     # success == 0
     # fails != 0 (where will be error msg)
     def _buildResult(self,dll,success, err_msg):
+        self._cursor.execute("DELETE FROM DllBuilt where dll=(?)",(dll,))
         self._cursor.execute("INSERT INTO DllBuilt (dll,success,err_msg) values(?,?,?)",(dll,success,err_msg))
         #self._cursor.execute("
     
@@ -134,10 +135,13 @@ class MSVCBuilder(object):
                 utc_time = datetime.datetime.strptime(dbLastUpdated,"%Y-%m-%d %H:%M:%S")
                 dbLastUpdated = int((utc_time- datetime.datetime(1970,1,1)).total_seconds())
                 if dbLastUpdated < int(lastUpdated):
+                    self._removeSource(dll.name,f)
+                    self._insertNewFile(dll.name,f,lastUpdated)
                     self.dirty.add(name)
-        sourcesRemoved = [dllFileRow[0] for dllFileRow in dllRegFiles if not dllFileRow[0] in dll.files]
-        for fileRemoved in sourcesRemoved:
-            self._removeSource(dll.name,fileRemoved)
+        for fileInDb in dllRegFiles:
+            file_name = fileInDb[0]
+            if not file_name in dll.files:
+                self._removeSource(dll.name,fileRemoved)
         self.conn.commit()
 
     def fileIsDirty(self,name):
